@@ -8,38 +8,33 @@ def get_user_intent():
     return input("> ") #Getting the user's intent
 
 # Making a function that uses the user's intent to create a detailed prompt for the LLM
-def create_detailed_prompt(user_intent):
-    """Convert user intent into a detailed prompt for the LLM"""
-    detailed_prompt = f"""
-    Create a P4 program based on the following networking intent:
-    {user_intent}
+def create_detailed_prompt(intent):
+    return f"""Generate P4-16 code that implements the following network intent: {intent}
 
-    Please follow the P4-16 specification (https://p4.org/p4-spec/docs/P4-16-working-spec.html) and provide:
-    1. A complete P4 program with:
-       - All necessary header definitions and parsers
-       - Control blocks (ingress and egress)
-       - Match-action tables
-       - Actions and action blocks
-       - Proper error handling
-       - Appropriate metadata structures
-    
-    2. Detailed comments explaining:
-       - The purpose of each component
-       - How the program implements the requested functionality
-       - Any assumptions or limitations
-       - The flow of packet processing
-    
-    3. Required configurations:
-       - Table entries that need to be populated
-       - Any specific runtime configurations
-       - Dependencies or prerequisites
-    
-    4. Implementation notes:
-       - Target architecture compatibility
-       - Performance considerations
-       - Potential optimizations
-    """
-    return detailed_prompt
+The code must be compatible with the v1model.p4 architecture and include all required components:
+
+1. Include the v1model.p4 header at the top:
+   #include <v1model.p4>
+
+2. Define the following components with unique names (avoid using standard names like Ingress, Egress):
+   - Headers (e.g., MyHeaders)
+   - Parser (e.g., MyParser)
+   - VerifyChecksum control block
+   - Ingress control block
+   - Egress control block
+   - ComputeChecksum control block
+   - Deparser (e.g., MyDeparser)
+
+3. The main V1Switch instantiation must include all 6 components:
+   V1Switch(MyParser(), MyVerifyChecksum(), MyIngress(), MyEgress(), MyComputeChecksum(), MyDeparser()) main;
+
+4. Include standard metadata and packet_in/packet_out parameters
+
+5. Implement the specific functionality requested in the intent
+
+The code should be complete and ready to compile with the P4 behavioral model (BMv2).
+
+Reference P4-16 specification: https://p4.org/p4-spec/docs/P4-16-v1.2.4.html"""
 
 def generate_p4_code(prompt):
     #Generate P4 code using OpenAI API
@@ -85,7 +80,7 @@ def save_p4_code(generated_code, user_intent):
         #using the writing permission to write the code to the text file
         with open(filename, 'w') as f:
             f.write(generated_code)
-        print(f"\nP4 code has been saved to: {filename}")
+        print(f"\nP4 code has been saved to: {filename}")   
         return filename
     except Exception as e:
         print(f"Error saving P4 code: {e}")
