@@ -1,0 +1,100 @@
+```p4
+// P4-16 program for a Point-to-Point (P2P) setup
+
+// Header definitions
+header ethernet_t {
+    bit<48> dstAddr;
+    bit<48> srcAddr;
+    bit<16> etherType;
+}
+
+header ipv4_t {
+    bit<4> version;
+    bit<4> ihl;
+    bit<8> diffserv;
+    bit<16> totalLen;
+    bit<16> identification;
+    bit<3> flags;
+    bit<13> fragOffset;
+    bit<8> ttl;
+    bit<8> protocol;
+    bit<16> hdrChecksum;
+    bit<32> srcAddr;
+    bit<32> dstAddr;
+}
+
+// Parser - extracts headers from the packet
+parser MyParser(packet_in packet, out headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
+    state start {
+        packet.extract(hdr.ethernet);
+        transition parse_ipv4;
+    }
+    state parse_ipv4 {
+        packet.extract(hdr.ipv4);
+        transition accept;
+    }
+}
+
+// Control blocks (ingress and egress)
+control Ingress(inout headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
+    action forward(bit<9> egress_port) {
+        standard_metadata.egress_spec = egress_port;
+    }
+
+    // Match-action tables
+    table ipv4_lpm {
+        key = { hdr.ipv4.dstAddr: lpm; }
+        actions = { forward; }
+        size = 1024;
+    }
+
+    apply {
+        if (hdr.ipv4.isValid()) {
+            ipv4_lpm.apply();
+        }
+    }
+}
+
+control Egress(inout headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
+    apply { }
+}
+
+// Metadata structures
+struct headers {
+    ethernet_t ethernet;
+    ipv4_t ipv4;
+}
+
+struct metadata {
+}
+
+// The main control block
+control Deparser(packet_out packet, in headers hdr) {
+    apply {
+        packet.emit(hdr.ethernet);
+        packet.emit(hdr.ipv4);
+    }
+}
+
+// The main program
+V1Switch(MyParser(), Ingress(), Egress(), Deparser()) main;
+```
+
+Comments:
+1. The `headers` struct contains all the packet headers that our P4 program will consider. In this case, we're only considering Ethernet and IPv4 headers.
+2. In the `MyParser` block, we extract the Ethernet header from the packet first, and then the IPv4 header.
+3. In the `Ingress` control block, we define an action `forward` which forwards packets to the provided `egress_port`.
+4. We also define a match-action table `ipv4_lpm` that matches on destination IP address (`lpm` stands for Longest Prefix Match). The only action it can perform is `forward`.
+5. The `apply` block inside `Ingress` control block checks if the IPv4 header is valid, and if it is, it applies the `ipv4_lpm` table. If there's a match, the packet is forwarded to the appropriate port.
+6. The `Egress` control block is empty. In a more complex program, it could contain additional processing logic.
+7. In the `Deparser` block, we emit the Ethernet and IPv4 headers back into the packet. The order of `emit` calls should match the order of headers in the original packet.
+8. Finally, `V1Switch` is the main P4 program, and we provide it with our parser, ingress control block, egress control block, and deparser block.
+
+Required Configurations:
+- `ipv4_lpm` table entries need to be populated with destination IP addresses and corresponding egress ports.
+
+Implementation Notes:
+- This is a simple P2P setup and may not cover all possible P2P scenarios.
+- Performance can be affected by the size of the `ipv4_lpm` table. Large tables might slow down packet processing.
+- Potential optimizations include using multiple tables or using a different match type if the distribution of destination IP addresses allows it.
+- The target architecture should support P4-16.
