@@ -1,53 +1,113 @@
-# P4 Code Generator using OpenAI
+# LLM-Driven P4 Code Generation System
 
-Hey there! This is a cool Python script that helps you generate P4 code using OpenAI's GPT-4.
+This system uses Large Language Models (LLMs) to generate P4 code based on high-level network intents. It provides an automated way to convert network requirements into valid P4 programs.
 
-## What You Need
+## Prerequisites
 
-Before you start, make sure you have:
-- Python 3.x installed
-- An OpenAI API key 
-- A terminal to run commands (preferabily Bash)
+- Python 3.x
+- OpenAI API key
+- Git
+- p4c compiler (P4 compiler)
 
-## How to Get Your OpenAI API Key
+## Setup Instructions
 
-1. Go to https://platform.openai.com/api-keys
-2. Sign up or log in to your OpenAI account
-3. Click on your profile icon (top right)
-4. Go to "API keys"
-5. Click "Create new secret key"
-6. Copy your API key 
+### 1. Install p4c Compiler
 
-## Setting Up the Environment
-I am a mac user so, it is recommended to use virtual environment to run python on mac
-1. First, create a virtual environment like this:
+First, install the P4 compiler (p4c) on your system:
+
 ```bash
+# Clone the p4c repository
+git clone --recursive https://github.com/p4lang/p4c.git
+cd p4c
+
+# Build and install p4c
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_GC=OFF
+make -j1
+sudo make install
+```
+
+### 2. Clone the Repository
+
+```bash
+git clone https://github.com/yourusername/LLM-Driven-P4-and-Intent-Based-Network-Control-System.git
+cd LLM-Driven-P4-and-Intent-Based-Network-Control-System
+```
+
+### 3. Set Up Python Environment
+
+Create and activate a Python virtual environment:
+
+```bash
+# Create virtual environment
 python3 -m venv venv
-```
 
-2. Activate the virtual environment:
-```bash
+# Activate virtual environment
 source venv/bin/activate
+
+# Install Python dependencies
+python3 -m pip install -r requirements.txt
 ```
 
-3. Install the required package:
+### 4. Configure OpenAI API Key
+
+Set your OpenAI API key as an environment variable:
+
 ```bash
-pip install openai==0.28.0
+export OPENAI_API_KEY='your-api-key'
 ```
 
-4. Set your API key in the terminal:
+## Usage
+
+1. Run the main script:
 ```bash
-export OPENAI_API_KEY='your-api-key-here'
+python3 network_intent_to_p4.py
 ```
-(Replace 'your-api-key-here' with the key you copied)
 
-## Running the Script
+2. When prompted, enter your network intent. Be as specific as possible, for example:
+   - "Create a P4 program for basic packet forwarding"
+   - "Implement a P4 program for P2P setup"
+   - "Generate P4 code for a simple router with ACL"
 
-1. Make sure you're in the virtual environment (you'll see `(venv)` at the start of your terminal line)
-2. Run the script:
+3. The system will:
+   - Generate P4 code based on your intent
+   - Validate the code using p4c
+   - Save the generated code to `test.p4`
+   - Save validation results to `validation_status.txt`
+
+## Output Files
+
+- `test.p4`: The generated P4 code
+- `test.p4i`: Intermediate representation of the P4 code
+- `validation_status.txt`: Contains the validation results
+- `error_summary.txt`: Contains detailed error information if validation fails
+
+## Troubleshooting
+
+### Common Issues
+
+1. **p4c Not Found**
+   - Ensure p4c is properly installed and in your system PATH
+   - Verify installation by running `p4c --version`
+
+2. **OpenAI API Key Issues**
+   - Make sure the API key is set correctly
+   - Verify the key is valid and has sufficient credits
+
+3. **Validation Errors**
+   - Check `error_summary.txt` for detailed error messages
+   - The system will attempt to fix common issues automatically
+
+### Cleanup
+
+To clean up generated files:
 ```bash
-python network_intent_to_p4.py
+rm test.p4 test.p4i validation_status.txt error_summary.txt
 ```
-3. When prompted, describe what kind of P4 program you want (like "Create a P4 program for basic packet forwarding")
-4. The script will generate the code and save it to a file
+
+
+## Contact
+
+For questions or issues, please open an issue in the GitHub repository or email me at kunwardeepsingh00@gmail.com.
 

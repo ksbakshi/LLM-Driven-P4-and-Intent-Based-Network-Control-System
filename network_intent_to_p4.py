@@ -1,40 +1,49 @@
 import os #The os module in Python provides a way to interact with the operating system.
 import openai #The OpenAI API library for generating P4 code
 from datetime import datetime
+import subprocess
+import time
+import re
 
 def get_user_intent():
     #Get the networking intent from the user
     print("\nPlease provide you networkk intent here, please try to be as specific as possible (e.g., 'Create a P4 program for basic packet forwarding'):")
-    return input("> ") #Getting the user's intent
+    return input("> ").strip() #Getting the user's intent
 
 # Making a function that uses the user's intent to create a detailed prompt for the LLM
-def create_detailed_prompt(intent):
-    return f"""Generate P4-16 code that implements the following network intent: {intent}
+def create_detailed_prompt(intent, error_feedback=None):
+    base_prompt = f"""Generate P4-16 code that implements the following network intent: {intent}
 
-The code must be compatible with the v1model.p4 architecture and include all required components:
+IMPORTANT: Start your response with the P4 code directly. Do not include any text, explanations, or markdown formatting before the code.
 
-1. Include the v1model.p4 header at the top:
+The code must be compatible with the v1model.p4 architecture and follow P4_16 syntax. Include:
+
+1. Required includes:
+   #include <core.p4>
    #include <v1model.p4>
 
-2. Define the following components with unique names (avoid using standard names like Ingress, Egress):
-   - Headers (e.g., MyHeaders)
-   - Parser (e.g., MyParser)
-   - VerifyChecksum control block
-   - Ingress control block
-   - Egress control block
-   - ComputeChecksum control block
-   - Deparser (e.g., MyDeparser)
+2. Header and metadata definitions:
+   - Define headers using 'header' keyword, not 'header_type'
+   - Define a metadata struct
+   - Define a headers struct containing all headers
 
-3. The main V1Switch instantiation must include all 6 components:
+3. Define the following components with UNIQUE names (avoid using standard names like Parser, Ingress, etc.):
+   - Parser: (packet_in packet, out headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata)
+   - VerifyChecksum: (inout headers hdr, inout metadata meta)
+   - Ingress: (inout headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata)
+   - Egress: (inout headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata)
+   - ComputeChecksum: (inout headers hdr, inout metadata meta)
+   - Deparser: (packet_out packet, in headers hdr)
+
+4. End with V1Switch instantiation using your unique component names:
    V1Switch(MyParser(), MyVerifyChecksum(), MyIngress(), MyEgress(), MyComputeChecksum(), MyDeparser()) main;
 
-4. Include standard metadata and packet_in/packet_out parameters
+The code should be complete, properly structured, and ready to compile with p4c."""
 
-5. Implement the specific functionality requested in the intent
+    if error_feedback:
+        base_prompt += f"\n\nHere is the complete history of validation errors from previous attempts. Please analyze these errors carefully and ensure the new code addresses ALL of these issues:\n{error_feedback}\n\nGenerate a corrected version that addresses all these issues and does not repeat any of the previous errors. Remember to start with the code directly, no text before it."
 
-The code should be complete and ready to compile with the P4 behavioral model (BMv2).
-
-Reference P4-16 specification: https://p4.org/p4-spec/docs/P4-16-v1.2.4.html"""
+    return base_prompt
 
 def generate_p4_code(prompt):
     #Generate P4 code using OpenAI API
@@ -50,15 +59,20 @@ def generate_p4_code(prompt):
         response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": """You are a P4 programming expert. Generate clean, well-commented P4 code.
-                Follow the P4-16 specification (https://p4.org/p4-spec/docs/P4-16-working-spec.html) for:
-                - Header definitions and parsers
-                - Control blocks (ingress/egress)
-                - Match-action tables
-                - Actions and action blocks
-                - Error handling
-                - Metadata structures
-                Ensure all code follows P4-16 standards and best practices."""},
+                {"role": "system", "content": """You are a P4 programming expert. Your task is to generate P4 code.
+                IMPORTANT RULES:
+                1. Start your response with the P4 code directly
+                2. Do not include any text, explanations, or markdown formatting before the code
+                3. Do not include any text after the code
+                4. The code must be complete and valid P4-16 code
+                5. Follow the P4-16 specification for:
+                   - Header definitions and parsers
+                   - Control blocks (ingress/egress)
+                   - Match-action tables
+                   - Actions and action blocks
+                   - Error handling
+                   - Metadata structures
+                6. Ensure all code follows P4-16 standards and best practices"""},
                 {"role": "user", "content": prompt}
             ],
             #Used this link to know about the temperature and max tokens: https://platform.openai.com/docs/api-reference/debugging-requests
@@ -70,21 +84,64 @@ def generate_p4_code(prompt):
         print(f"Error generating P4 code: {e}")
         return None
 
-def save_p4_code(generated_code, user_intent):
-    #Saving the generated P4 code to a text file as its easier to read and edit
-    # Create a filename based on the timestamp of the intent was generated
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"p4_intent_program_{timestamp}.txt"
+def clean_p4_code(raw_code):
+    """Clean up the generated P4 code by removing markdown formatting and extra content."""
+    # Find the P4 code block
+    p4_block = re.search(r'```(?:P4|p4)?\n(.*?)```', raw_code, re.DOTALL)
+    if p4_block:
+        code = p4_block.group(1).strip()
+    else:
+        # If no code block found, try to find the first #include
+        code = raw_code.strip()
+        if '#include' in code:
+            code = code[code.find('#include'):]
     
+    # Remove any text before the first #include
+    if '#include' in code:
+        code = code[code.find('#include'):]
+    
+    # Remove any "p4" or "P4" line at the start of the file
+    code = re.sub(r'^[pP]4\s*\n', '', code)
+    
+    # Remove any leading/trailing whitespace
+    code = code.strip()
+    
+    return code
+
+def validate_p4_code(p4_code, filename, attempt):
+    # Clean up the code before saving
+    cleaned_code = clean_p4_code(p4_code)
+    
+    # Save the code to a file
+    with open(filename, 'w') as f:
+        f.write(cleaned_code)
+    
+    # Run the validation script with attempt number
+    subprocess.run(['./validate_p4.sh', str(attempt)], shell=True)
+    
+    # Check validation status
     try:
-        #using the writing permission to write the code to the text file
-        with open(filename, 'w') as f:
-            f.write(generated_code)
-        print(f"\nP4 code has been saved to: {filename}")   
-        return filename
-    except Exception as e:
-        print(f"Error saving P4 code: {e}")
-        return None
+        with open('validation_status.txt', 'r') as f:
+            status = f.read().strip()
+        
+        if status == "SUCCESS":
+            return True, None
+        
+        # If validation failed, read the error summary
+        with open('error_summary.txt', 'r') as f:
+            error_feedback = f.read()
+        return False, error_feedback
+    
+    except FileNotFoundError:
+        return False, "Validation process failed to create status file"
+
+def read_error_summary():
+    """Read the error summary file and return its contents."""
+    try:
+        with open("error_summary.txt", "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "No error history available."
 
 def main():
     # Check for OpenAI API key
@@ -94,27 +151,64 @@ def main():
         return
 
     # Get user intent
-    user_intent = get_user_intent()
+    intent = get_user_intent()
     
-    # Create detailed prompt
-    prompt = create_detailed_prompt(user_intent)
+    # Maximum number of validation attempts
+    max_attempts = 10
+    attempt = 1
+    error_feedback = None
+    generated_p4_code = None
     
-    # Generate P4 code
-    print("\nGenerating P4 code according to your intent...")
-    p4_code = generate_p4_code(prompt)
-    
-    #Checking if the code was generated successfully
-    #If the code was generated successfully, it will save the code to a text file
-    #If the code was not generated successfully, it will print a message saying that the code was not generated 
-    if p4_code:
-        # Save the code
-        filename = save_p4_code(p4_code, user_intent)
-        if filename:
-            print("\nProcess completed successfully!")
+    while attempt <= max_attempts:
+        print(f"\nAttempt {attempt} of {max_attempts}")
+        
+        if attempt == 1:
+            # First attempt: use original intent
+            prompt = create_detailed_prompt(intent)
+            print("\nGenerating P4 code according to your intent...")
         else:
-            print("\nFailed to save the P4 code.")
-    else:
-        print("\nFailed to generate P4 code.")
+            # Subsequent attempts: use generated code with error history
+            error_feedback = read_error_summary()
+            prompt = f"""Previous P4 code generated:
+{generated_p4_code}
+
+Error history:
+{error_feedback}
+
+Please fix the P4 code based on the error history above. Generate a complete, valid P4_16 program that addresses all the errors."""
+
+        # Generate P4 code
+        p4_code = generate_p4_code(prompt)
+        generated_p4_code = p4_code  # Store for subsequent attempts
+        
+        # Save the generated code
+        with open("test.p4", "w") as f:
+            f.write(p4_code)
+        
+        print("\nValidating generated P4 code...")
+        # Run validation script with current attempt number
+        subprocess.run(["./validate_p4.sh", str(attempt)])  # Removed check=True
+        
+        # Check validation status
+        with open("validation_status.txt", "r") as f:
+            status = f.read().strip()
+        
+        if status == "SUCCESS":
+            print("\n✅ Successfully generated valid P4 code!")
+            break
+        else:
+            print(f"\nValidation failed on attempt {attempt}. Errors found:")
+            with open("error_summary.txt", "r") as f:
+                print(f.read())
+            
+            if attempt < max_attempts:
+                print("\nRetrying with error feedback...")
+            
+        attempt += 1
+    
+    if attempt > max_attempts:
+        print("\n❌ Failed to generate valid P4 code after", max_attempts, "attempts.")
+        print("Please refine your intent or check the error feedback for more details.")
 
 if __name__ == "__main__":
     main() 
