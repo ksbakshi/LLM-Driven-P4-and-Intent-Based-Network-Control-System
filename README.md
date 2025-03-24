@@ -114,19 +114,7 @@ To clean up generated files while preserving error history:
 rm -f test.p4 test.p4i validation_status.txt p4_validation_errors.txt temp_errors.txt
 ```
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
 ## Contact
 
-For questions or issues, please open an issue in the GitHub repository.
+For questions or issues, please open an issue in the GitHub repository or email me at kunwardeepsingh00@gmail.com.
 
