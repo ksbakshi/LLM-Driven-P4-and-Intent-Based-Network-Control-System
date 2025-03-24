@@ -60,28 +60,36 @@ export OPENAI_API_KEY='your-api-key'
 
 ## Usage
 
-1. Run the main script:
+1. Before running the system, you can clean up any unnecessary files:
+```bash
+rm -f test.p4 test.p4i validation_status.txt p4_validation_errors.txt temp_errors.txt
+```
+Note: This will not delete error_summary.txt which maintains the history of validation errors.
+
+2. Run the main script:
 ```bash
 python3 network_intent_to_p4.py
 ```
 
-2. When prompted, enter your network intent. Be as specific as possible, for example:
+3. When prompted, enter your network intent. Be as specific as possible, for example:
    - "Create a P4 program for basic packet forwarding"
    - "Implement a P4 program for P2P setup"
    - "Generate P4 code for a simple router with ACL"
 
-3. The system will:
+4. The system will:
    - Generate P4 code based on your intent
    - Validate the code using p4c
    - Save the generated code to `test.p4`
    - Save validation results to `validation_status.txt`
+   - Maintain error history in `error_summary.txt`
 
 ## Output Files
 
 - `test.p4`: The generated P4 code
 - `test.p4i`: Intermediate representation of the P4 code
 - `validation_status.txt`: Contains the validation results
-- `error_summary.txt`: Contains detailed error information if validation fails
+- `error_summary.txt`: Contains detailed error information and history
+- `p4_validation_errors.txt`: Temporary file for current validation errors
 
 ## Troubleshooting
 
@@ -96,18 +104,29 @@ python3 network_intent_to_p4.py
    - Verify the key is valid and has sufficient credits
 
 3. **Validation Errors**
-   - Check `error_summary.txt` for detailed error messages
+   - Check `error_summary.txt` for detailed error messages and history
    - The system will attempt to fix common issues automatically
 
 ### Cleanup
 
-To clean up generated files:
+To clean up generated files while preserving error history:
 ```bash
-rm test.p4 test.p4i validation_status.txt error_summary.txt
+rm -f test.p4 test.p4i validation_status.txt p4_validation_errors.txt temp_errors.txt
 ```
 
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Contact
 
-For questions or issues, please open an issue in the GitHub repository or email me at kunwardeepsingh00@gmail.com.
+For questions or issues, please open an issue in the GitHub repository.
 

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Clean up previous validation files (but preserve error history)
+rm -f validation_status.txt p4_validation_errors.txt temp_errors.txt
+
 # Function to validate P4 code and return error messages
 validate_p4() {
     local p4_file=$1
