@@ -121,10 +121,7 @@ python3 network_intent_to_p4.py
 
 ### Cleanup
 
-To clean up generated files while preserving error history:
-```bash
-rm -f test.p4 test.p4i validation_status.txt p4_validation_errors.txt temp_errors.txt
-```
+Everytime the user runs the python script all the unwanted files will be deleted to avoid any kinds of conflicts.
 
 ## Contact
 
