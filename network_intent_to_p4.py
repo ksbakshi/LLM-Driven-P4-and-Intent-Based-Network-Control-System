@@ -4,10 +4,34 @@ from datetime import datetime
 import subprocess
 import time
 import re
+import glob
+
+def cleanup_files():
+    """Clean up all P4 and error-related files before starting."""
+    # Files to remove
+    patterns = [
+        "*.p4",      # All P4 files
+        "*.p4i",     # P4 intermediate files
+        "*.json",    # JSON configuration files
+        "validation_status.txt",
+        "error_summary.txt",
+        "p4_validation_errors.txt",
+        "temp_errors.txt"
+    ]
+    
+    print("\nCleaning up previous files...")
+    for pattern in patterns:
+        for file in glob.glob(pattern):
+            try:
+                os.remove(file)
+                print(f"Removed: {file}")
+            except OSError as e:
+                print(f"Error removing {file}: {e}")
+    print("Cleanup complete.\n")
 
 def get_user_intent():
     #Get the networking intent from the user
-    print("\nPlease provide you networkk intent here, please try to be as specific as possible (e.g., 'Create a P4 program for basic packet forwarding'):")
+    print("\nPlease provide your network intent here, please try to be as specific as possible (e.g., 'Create a P4 program for basic packet forwarding'):")
     return input("> ").strip() #Getting the user's intent
 
 # Making a function that uses the user's intent to create a detailed prompt for the LLM
@@ -139,11 +163,19 @@ def read_error_summary():
     """Read the error summary file and return its contents."""
     try:
         with open("error_summary.txt", "r") as f:
-            return f.read()
+            content = f.read()
+            # Only return the last 3 attempts to keep the context size manageable
+            attempts = content.split("=== Attempt")
+            if len(attempts) > 4:  # Keep header + last 3 attempts
+                return "=== P4 Code Validation Error History ===\n" + "=== Attempt".join(attempts[-3:])
+            return content
     except FileNotFoundError:
         return "No error history available."
 
 def main():
+    # Clean up existing files
+    cleanup_files()
+    
     # Check for OpenAI API key
     if 'OPENAI_API_KEY' not in os.environ:
         print("Error: OPENAI_API_KEY environment variable is not set")
@@ -179,6 +211,10 @@ Please fix the P4 code based on the error history above. Generate a complete, va
 
         # Generate P4 code
         p4_code = generate_p4_code(prompt)
+        if p4_code is None:
+            print("\n❌ Failed to generate P4 code. Please try again with a different intent.")
+            return
+            
         generated_p4_code = p4_code  # Store for subsequent attempts
         
         # Save the generated code

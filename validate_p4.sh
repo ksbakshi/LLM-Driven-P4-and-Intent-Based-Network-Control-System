@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Clean up previous validation files (but preserve error history)
-rm -f validation_status.txt p4_validation_errors.txt temp_errors.txt
+# Clean up ALL previous files
+rm -f validation_status.txt p4_validation_errors.txt temp_errors.txt error_summary.txt
 
 # Function to validate P4 code and return error messages
 validate_p4() {
@@ -34,7 +34,7 @@ extract_error_info() {
     local error_file="p4_validation_errors.txt"
     local error_history="error_summary.txt"
     
-    # Create error_summary.txt if it doesn't exist
+    # Create new error_summary.txt for this run
     if [ ! -f "$error_history" ]; then
         echo "=== P4 Code Validation Error History ===" > "$error_history"
     fi
@@ -65,9 +65,11 @@ echo "----------------"
 # Get the attempt number from command line argument, default to 1
 attempt="${1:-1}"
 
-# Find all P4 files in the current directory
-for file in *.p4; do
-    if [ -f "$file" ]; then
-        validate_p4 "$file" "$attempt"
-    fi
-done 
+# Validate only test.p4 file
+if [ -f "test.p4" ]; then
+    validate_p4 "test.p4" "$attempt"
+else
+    echo "Error: test.p4 file not found"
+    echo "VALIDATION_ERROR" > validation_status.txt
+    exit 1
+fi 

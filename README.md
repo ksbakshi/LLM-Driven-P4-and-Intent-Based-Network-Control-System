@@ -2,6 +2,18 @@
 
 This system uses Large Language Models (LLMs) to generate P4 code based on high-level network intents. It provides an automated way to convert network requirements into valid P4 programs.
 
+## Summary
+
+This project implements an intelligent system that bridges the gap between high-level network intents and low-level P4 programming. Key features include:
+
+- **Intent-Based Programming**: Convert natural language network requirements into P4 code
+- **Automated Validation**: Built-in P4 code validation using p4c compiler
+- **Error Handling**: Comprehensive error tracking and history maintenance
+- **Interactive Interface**: Simple command-line interface for code generation
+- **Flexible Architecture**: Easy to extend and modify for different network requirements
+
+The system is designed to simplify P4 programming by allowing network engineers to focus on their intent rather than implementation details, while ensuring the generated code meets P4 specifications and best practices.
+
 ## Prerequisites
 
 - Python 3.x
